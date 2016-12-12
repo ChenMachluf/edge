@@ -202,9 +202,6 @@ public class CoreCLREmbedding
 
                 _packagesPath = Path.Combine(profileDirectory, ".nuget", "packages");
             }
-
-            DebugMessage("EdgeAssemblyResolver::ctor (CLR) - Packages path is {0}", _packagesPath);
-            DebugMessage("EdgeAssemblyResolver::ctor (CLR) - Finished");
         }
 
         public void LoadDependencyManifest(string dependencyManifestFile)
@@ -218,7 +215,7 @@ public class CoreCLREmbedding
                 DebugMessage("EdgeAssemblyResolver::LoadDependencyManifest (CLR) - Reading dependency manifest file and merging in dependencies from the shared runtime");
                 DependencyContext dependencyContext = dependencyContextReader.Read(dependencyManifestStream);
 
-                string runtimeDependencyManifestFile = (string)AppContext.GetData("FX_DEPS_FILE");
+                string runtimeDependencyManifestFile = (string) AppContext.GetData("FX_DEPS_FILE");
 
                 if (!String.IsNullOrEmpty(runtimeDependencyManifestFile) && runtimeDependencyManifestFile != dependencyManifestFile)
                 {
@@ -373,12 +370,12 @@ public class CoreCLREmbedding
         public string GetAssemblyPath(string assemblyName)
         {
             if (!_libraries.ContainsKey(assemblyName))
-            {
+        {
                 return null;
             }
 
             return _libraries[assemblyName];
-        }
+            }
 
         public string GetNativeLibraryPath(string libraryName)
         {
@@ -434,13 +431,16 @@ public class CoreCLREmbedding
             RuntimeEnvironment = new EdgeRuntimeEnvironment(bootstrapperContext);
             Resolver = new EdgeAssemblyResolver();
 
-            AssemblyLoadContext.Default.Resolving += Assembly_Resolving;
-
-            if (!String.IsNullOrEmpty(RuntimeEnvironment.DependencyManifestFile))
+            if (Environment.GetEnvironmentVariable("EDGE_CORECLR_ALREADY_RUNNING") != "1")
             {
-                Resolver.LoadDependencyManifest(RuntimeEnvironment.DependencyManifestFile);
+                AssemblyLoadContext.Default.Resolving += Assembly_Resolving;
+
+                if (!String.IsNullOrEmpty(RuntimeEnvironment.DependencyManifestFile))
+                {
+                    Resolver.LoadDependencyManifest(RuntimeEnvironment.DependencyManifestFile);
+                }
             }
-            
+
             DebugMessage("CoreCLREmbedding::Initialize (CLR) - Complete");
         }
 
@@ -488,6 +488,11 @@ public class CoreCLREmbedding
                 }
 
                 assembly = LoadContext.LoadFromAssemblyPath(assemblyFile);
+            }
+
+            else if (assemblyFile == "EdgeJs")
+            {
+                assembly = typeof(CoreCLREmbedding).GetTypeInfo().Assembly;
             }
 
             else

@@ -1,8 +1,8 @@
 ﻿using System;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 using EdgeJs;
 using System.Threading.Tasks;
 using System.Dynamic;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace double_test
 {

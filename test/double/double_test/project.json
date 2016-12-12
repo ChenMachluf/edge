@@ -1,0 +1,32 @@
+{
+  "frameworks": {
+    "netcoreapp1.0": {
+      "imports": [
+        "portable-dnxcore50+net45+win8+wp8+wpa81",
+        "portable-net45+win8",
+        "dnxcore50"
+      ],
+
+      "dependencies": {
+        "NETStandard.Library": "1.6.0",
+        "System.Console": "4.0.0",
+        "dotnet-test-mstest": "1.0.1-preview",
+        "MSTest.TestFramework": "1.0.0-preview"
+      }
+    }
+  },
+
+  "dependencies": {
+    "Edge.js": {
+      "target": "package",
+      "version": "6.2.2"
+    }
+  },
+
+  "testRunner": "mstest",
+
+  "runtimes": {
+    "win7-x64": { },
+    "ubuntu.14.04-x64": { } 
+  }
+}

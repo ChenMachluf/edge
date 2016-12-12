@@ -175,6 +175,134 @@ pal::string_t GetOSVersion()
 #endif
 }
 
+HRESULT CoreClrEmbedding::InitializeAlreadyRunning(BOOL debugMode)
+{
+	SetCallV8FunctionDelegateFunction setCallV8Function;
+
+	trace::setup();
+
+	pal::string_t edgeDebug;
+	pal::getenv(_X("EDGE_DEBUG"), &edgeDebug);
+
+	if (edgeDebug.length() > 0)
+	{
+		trace::enable();
+	}
+
+	trace::info(_X("CoreClrEmbedding::InitializeAlreadyRunning - Started"));
+
+	pal::string_t functionPointersEnv;
+	std::vector<char> functionPointerCstr;
+
+	pal::getenv(_X("EDGE_CALLBACK_FUNCTION_POINTERS"), &functionPointersEnv);
+	trace::info(_X("CoreClrEmbedding::InitializeAlreadyRunning - EDGE_CALLBACK_FUNCTION_POINTERS is %s"), functionPointersEnv.c_str());
+
+	pal::stringstream_t functionPointersStream(functionPointersEnv);
+	pal::string_t functionPointerString;
+	std::vector<pal::string_t> functionPointers;
+
+	while (std::getline(functionPointersStream, functionPointerString, _X(',')))
+	{
+		trace::info(_X("CoreClrEmbedding::InitializeAlreadyRunning - Got function pointer for %s"), functionPointerString.c_str());
+		functionPointers.push_back(functionPointerString);
+	}
+
+	trace::info(_X("CoreClrEmbedding::InitializeAlreadyRunning - Setting callback functions"));
+
+	pal::pal_clrstring(functionPointers[0], &functionPointerCstr);
+	getFunc = (GetFuncFunction) atoll(functionPointerCstr.data());
+
+	pal::pal_clrstring(functionPointers[1], &functionPointerCstr);
+	callFunc = (CallFuncFunction) atoll(functionPointerCstr.data());
+
+	pal::pal_clrstring(functionPointers[2], &functionPointerCstr);
+	continueTask = (ContinueTaskFunction) atoll(functionPointerCstr.data());
+
+	pal::pal_clrstring(functionPointers[3], &functionPointerCstr);
+	freeHandle = (FreeHandleFunction) atoll(functionPointerCstr.data());
+
+	pal::pal_clrstring(functionPointers[4], &functionPointerCstr);
+	freeMarshalData = (FreeMarshalDataFunction) atoll(functionPointerCstr.data());
+
+	pal::pal_clrstring(functionPointers[5], &functionPointerCstr);
+	setCallV8Function = (SetCallV8FunctionDelegateFunction) atoll(functionPointerCstr.data());
+
+	pal::pal_clrstring(functionPointers[6], &functionPointerCstr);
+	compileFunc = (CompileFuncFunction) atoll(functionPointerCstr.data());
+
+	pal::pal_clrstring(functionPointers[7], &functionPointerCstr);
+	initialize = (InitializeFunction) atoll(functionPointerCstr.data());
+
+	trace::info(_X("CoreClrEmbedding::InitializeAlreadyRunning - Finished setting callback functions"));
+
+	CoreClrGcHandle exception = NULL;
+	BootstrapperContext context;
+	pal::string_t currentDirectory;
+
+	if (!pal::getcwd(&currentDirectory))
+	{
+		trace::info(_X("CoreClrEmbedding::InitializeAlreadyRunning - Unable to get current directory"));
+		throwV8Exception("Unable to get the current directory.");
+		return E_FAIL;
+	}
+
+	pal::string_t edgeAppDir;
+	pal::getenv(_X("EDGE_APP_ROOT"), &edgeAppDir);
+
+	std::vector<char> currentDirectoryCstr, edgeAppDirCstr;
+	pal::pal_clrstring(currentDirectory, &currentDirectoryCstr);
+	pal::pal_clrstring(edgeAppDir, &edgeAppDirCstr);
+
+	context.applicationDirectory = edgeAppDirCstr.data();
+	context.runtimeDirectory = NULL;
+	context.dependencyManifestFile = NULL;
+
+	if (!context.applicationDirectory)
+	{
+		context.applicationDirectory = currentDirectoryCstr.data();
+	}
+
+	trace::info(_X("CoreClrEmbedding::InitializeAlreadyRunning - Application directory: %s"), edgeAppDir.c_str());
+	trace::info(_X("CoreClrEmbedding::InitializeAlreadyRunning - Calling CLR Initialize() function"));
+
+	initialize(&context, &exception);
+
+	if (exception)
+	{
+		v8::Local<v8::Value> v8Exception = CoreClrFunc::MarshalCLRToV8(exception, V8TypeException);
+		FreeMarshalData(exception, V8TypeException);
+
+		throwV8Exception(v8Exception);
+		return E_FAIL;
+	}
+
+	else
+	{
+		trace::info(_X("CoreClrEmbedding::InitializeAlreadyRunning - CLR Initialize() function called successfully"));
+	}
+
+	exception = NULL;
+	setCallV8Function(CoreClrNodejsFunc::Call, &exception);
+
+	if (exception)
+	{
+		v8::Local<v8::Value> v8Exception = CoreClrFunc::MarshalCLRToV8(exception, V8TypeException);
+		FreeMarshalData(exception, V8TypeException);
+
+		throwV8Exception(v8Exception);
+		return E_FAIL;
+	}
+
+	else
+	{
+		trace::info(_X("CoreClrEmbedding::InitializeAlreadyRunning - CallV8Function delegate set successfully"));
+	}
+
+	trace::info(_X("CoreClrEmbedding::InitializeAlreadyRunning - Completed"));
+
+	return S_OK;
+}
+
 HRESULT CoreClrEmbedding::Initialize(BOOL debugMode)
 {
 	trace::setup();
